@@ -46,22 +46,28 @@ where
     }
 }
 
-struct CStrStaticPtr([*const std::os::raw::c_char; 1]);
+struct CStrStaticPtr<const N: usize>([*const std::os::raw::c_char; N]);
 
-impl core::ops::Deref for CStrStaticPtr {
-    type Target = [*const std::os::raw::c_char; 1];
+impl<const N: usize> core::ops::Deref for CStrStaticPtr<N> {
+    type Target = [*const std::os::raw::c_char; N];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-unsafe impl Sync for CStrStaticPtr {}
+unsafe impl<const N: usize> Sync for CStrStaticPtr<N> {}
 
 const VK_LOADER_DEBUG: &str = "VK_LOADER_DEBUG";
 const LAYER_KHRONOS_VALIDATION: &CStr = c_str!("VK_LAYER_KHRONOS_validation");
-static LAYER_KHRONOS_VALIDATION_ARRAY: CStrStaticPtr =
+static LAYER_KHRONOS_VALIDATION_ARRAY: CStrStaticPtr<1> =
     CStrStaticPtr([LAYER_KHRONOS_VALIDATION.as_ptr()]);
+
+// erupt CreateInfoBuilder's has problem without passing enabled_extensions argument,
+// https://github.com/GpuZelenograd/memtest_vulkan/issues/53
+// Workaround it by explicitly passing empty array
+static NO_EXTENSIONS_ARRAY: CStrStaticPtr<0> = CStrStaticPtr([]);
+
 const GB: f32 = (1024 * 1024 * 1024) as f32;
 const READ_SHADER: &[u32] = memtest_vulkan_build::compiled_vk_compute_spirv!(
     r#"
@@ -593,8 +599,9 @@ fn prepare_and_test_device<Writer: std::io::Write>(
             .queue_priorities(&[1.0]),
     ];
 
-    let device_create_info =
-        vk::DeviceCreateInfoBuilder::new().queue_create_infos(&queue_create_info);
+    let device_create_info = vk::DeviceCreateInfoBuilder::new()
+        .enabled_extension_names(&*NO_EXTENSIONS_ARRAY)
+        .queue_create_infos(&queue_create_info);
 
     let device =
         match unsafe { DeviceLoader::new(instance, selected.physical_device, &device_create_info) }
@@ -1316,7 +1323,9 @@ fn load_instance<Writer: std::io::Write>(
     let simple_instance_try = unsafe {
         InstanceLoader::new(
             &entry,
-            &vk::InstanceCreateInfoBuilder::new().application_info(&app_info),
+            &vk::InstanceCreateInfoBuilder::new()
+                .enabled_extension_names(&*NO_EXTENSIONS_ARRAY)
+                .application_info(&app_info),
         )
     }
     .err_as_str_context("instance. Try specifying icd.json via VK_DRIVER_FILES env var");
