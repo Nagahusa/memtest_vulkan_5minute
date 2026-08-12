@@ -1,7 +1,7 @@
 mod close;
 mod input;
 mod output;
- 
+
 use byte_strings::c_str;
 use core::cmp::{max, min};
 use erupt::{
@@ -460,7 +460,7 @@ unsafe extern "system" fn debug_callback(
     p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
     _p_user_data: *mut c_void,
 ) -> vk::Bool32 {
-    epprintln!(
+    eprintln!(
         "{}",
         CStr::from_ptr((*p_callback_data).p_message).to_string_lossy()
     );
