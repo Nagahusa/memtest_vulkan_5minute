@@ -1148,6 +1148,7 @@ fn test_device<Writer: std::io::Write>(
                         "Standard 5-minute test PASSed! Just press Ctrl+C unless you plan long test run."
                     ),
                 }?;
+                break;
                 writeln!(
                     log_dupler,
                     "Extended endless test started; testing more than 2 hours is usually unneeded"
